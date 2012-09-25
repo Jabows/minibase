@@ -13,7 +13,13 @@
 
 void HFPage::init(PageId pageNo)
 {
-  // fill in the body
+  this->curPage  = pageNo;
+  this->prevPage = INVALID_PAGE;
+  this->nextPage = INVALID_PAGE;
+  this->slotCnt  = 0;
+  this->slot[0].length = EMPTY_SLOT;
+  this->usedPtr  = (MAX_SPACE - DPFIXED);
+  this->freeSpace = (MAX_SPACE - (DPFIXED + sizeof(slot_t)));
 }
 
 // **********************************************************
@@ -37,7 +43,7 @@ void HFPage::dumpPage()
 PageId HFPage::getPrevPage()
 {
     // fill in the body
-    return 0;
+    return this->prevPage;
 }
 
 // **********************************************************
@@ -45,19 +51,22 @@ void HFPage::setPrevPage(PageId pageNo)
 {
 
     // fill in the body
+    this->prevPage = pageNo;
 }
 
 // **********************************************************
 void HFPage::setNextPage(PageId pageNo)
 {
   // fill in the body
+  this->nextPage = pageNo;
 }
 
 // **********************************************************
 PageId HFPage::getNextPage()
 {
     // fill in the body
-    return 0;
+    return this->nextPage;
+
 }
 
 // **********************************************************
@@ -66,7 +75,34 @@ PageId HFPage::getNextPage()
 // RID of the new record is returned via rid parameter.
 Status HFPage::insertRecord(char* recPtr, int recLen, RID& rid)
 {
-    // fill in the body
+    // Check if we have space for this record
+    if((recLen+sizeof(slot_t)) > (this->freeSpace))
+        return DONE;
+
+    // increment the slot count
+    ++(this->slotCnt);  
+
+    // first create the slot
+    this->slot[(this->slotCnt)-1].length = recLen;
+    this->slot[(this->slotCnt)-1].offset = (this->usedPtr)-(recLen); 
+
+    // Make the next slot invalid
+    this->slot[(this->slotCnt)].length = INVALID_SLOT;
+    
+    // Update usedPtr
+    this->usedPtr = (this->usedPtr)-(recLen);
+
+    /**
+     * Adjust the metadata for this record and page.
+     */
+    this->freeSpace = (this->usedPtr) - ((this->slotCnt)*sizeof(slot_t));    
+
+    /**
+     * Create and initialize a new record struct.
+     */
+    rid.pageNo = this->curPage;  
+    rid.slotNo = (this->slotCnt)-1;
+    
     return OK;
 }
 
@@ -84,8 +120,18 @@ Status HFPage::deleteRecord(const RID& rid)
 // returns RID of first record on page
 Status HFPage::firstRecord(RID& firstRid)
 {
-    // fill in the body
-    return OK;
+    // get the first slot which != empty, check if valid and return RID
+    for(int i=0; i < (this->slotCnt); ++i)
+    {
+        //
+        if(this->slot[i].length != EMPTY_SLOT)
+        {
+            firstRid.pageNo = (this->curPage);
+            firstRid.slotNo = i;
+            return OK;
+        }
+    }
+    return DONE;
 }
 
 // **********************************************************
@@ -93,8 +139,17 @@ Status HFPage::firstRecord(RID& firstRid)
 // returns DONE if no more records exist on the page; otherwise OK
 Status HFPage::nextRecord (RID curRid, RID& nextRid)
 {
-    // fill in the body
+    PageId pno = curRid.pageNo;
+    int sno = curRid.slotNo;   
 
+    int next_sno = sno+1;
+    if((this->slot[next_sno]).length == EMPTY_SLOT)
+        return DONE;
+    if((this->slot[next_sno]).length == INVALID_SLOT)
+        return FAIL;
+
+    nextRid.pageNo = curRid.pageNo;
+    nextRid.slotNo = next_sno;
     return OK;
 }
 
@@ -102,7 +157,20 @@ Status HFPage::nextRecord (RID curRid, RID& nextRid)
 // returns length and copies out record with RID rid
 Status HFPage::getRecord(RID rid, char* recPtr, int& recLen)
 {
-    // fill in the body
+    PageId pno = rid.pageNo;
+    int sno = rid.slotNo;
+
+    if((this->slot[sno].length) == EMPTY_SLOT)
+        return FAIL;
+    if((this->slot[sno].length) == INVALID_SLOT)
+        return DONE;
+
+    int len = this->slot[sno].length;
+    int off = this->slot[sno].offset;
+    // copy the record from offset upto length
+    memcpy(recPtr, (char*)this->data[off], len);
+    recLen = this->slot[sno].length;
+
     return OK;
 }
 
@@ -121,8 +189,7 @@ Status HFPage::returnRecord(RID rid, char*& recPtr, int& recLen)
 // Returns the amount of available space on the heap file page
 int HFPage::available_space(void)
 {
-    // fill in the body
-    return 0;
+    return ((this->freeSpace) - sizeof(slot_t));
 }
 
 // **********************************************************
@@ -131,7 +198,10 @@ int HFPage::available_space(void)
 bool HFPage::empty(void)
 {
     // fill in the body
-    return true;
+    if(this->slotCnt == 0)
+        return true;
+    else
+        return false;
 }
 
 
