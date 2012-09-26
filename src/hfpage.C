@@ -1,4 +1,4 @@
-#include <iostream>
+ #include <iostream>
 #include <stdlib.h>
 #include <memory.h>
 
@@ -178,21 +178,24 @@ Status HFPage::firstRecord(RID& firstRid)
 Status HFPage::nextRecord (RID curRid, RID& nextRid)
 {
     PageId pno = curRid.pageNo;
-    int sno = curRid.slotNo;   
-
+    int sno = curRid.slotNo;
     int next_sno = sno+1;
-      
+
     if((this->slot[next_sno]).length == INVALID_SLOT)
         return DONE;
 
     nextRid.pageNo = curRid.pageNo;
     if((this->slot[next_sno]).length == EMPTY_SLOT)
-    {    
-        if((this->slot[next_sno+1]).length == INVALID_SLOT)
-            return DONE;
-        nextRid.slotNo = next_sno+1;
-        return OK;
+    {
+        // Keep searching for a valid record
+        ++(next_sno);
+        while((this->slot[next_sno]).length == EMPTY_SLOT)
+            ++(next_sno);
     }
+
+    if((this->slot[next_sno]).length == INVALID_SLOT)
+        return DONE;
+
     nextRid.slotNo = next_sno;
     return OK;
 }
