@@ -88,7 +88,7 @@ Status HFPage::insertRecord(char* recPtr, int recLen, RID& rid)
 
     // Make the next slot invalid
     this->slot[(this->slotCnt)].length = INVALID_SLOT;
-    
+
     // Update usedPtr
     this->usedPtr = (this->usedPtr)-(recLen);
 
@@ -112,7 +112,45 @@ Status HFPage::insertRecord(char* recPtr, int recLen, RID& rid)
 // Use memmove() rather than memcpy() as space may overlap.
 Status HFPage::deleteRecord(const RID& rid)
 {
-    // fill in the body
+    PageId pno = rid.pageNo;
+    int    sno = rid.slotNo;
+    int next_sno = sno+1;
+
+    if((this->slot[sno]).length == EMPTY_SLOT)
+        return DONE;
+    if((this->slot[sno]).length == INVALID_SLOT)
+        return FAIL;
+
+    // check if this is the last slot
+    // if yes, then mark this slot empty 
+    // and decrement the slotCnt.
+    if(next_sno > slotCnt)
+    {
+        this->slot[sno].length = INVALID_SLOT;
+        --(this->slotCnt);
+        return OK;
+    }
+
+    int off = this->slot[sno].offset;
+    int len = this->slot[sno].length;
+    this->slot[sno].length = EMPTY_SLOT;
+    char* destptr = (char*)this->data+off;
+
+    // for all the recs after sno
+    // - memmov by the len of sno
+    // - increment the offset
+    for(int i=next_sno; i < slotCnt; ++i)
+    {
+        (this->slot[i].offset)+=len;
+        
+        //char* srcptr  = (char*)this->data[other_off]; 
+
+        memmove(destptr,destptr-len,len);
+
+        destptr = destptr-len;
+
+    }
+
     return OK;
 }
 
@@ -143,12 +181,18 @@ Status HFPage::nextRecord (RID curRid, RID& nextRid)
     int sno = curRid.slotNo;   
 
     int next_sno = sno+1;
-    if((this->slot[next_sno]).length == EMPTY_SLOT)
-        return DONE;
+      
     if((this->slot[next_sno]).length == INVALID_SLOT)
-        return FAIL;
+        return DONE;
 
     nextRid.pageNo = curRid.pageNo;
+    if((this->slot[next_sno]).length == EMPTY_SLOT)
+    {    
+        if((this->slot[next_sno+1]).length == INVALID_SLOT)
+            return DONE;
+        nextRid.slotNo = next_sno+1;
+        return OK;
+    }
     nextRid.slotNo = next_sno;
     return OK;
 }
@@ -168,7 +212,7 @@ Status HFPage::getRecord(RID rid, char* recPtr, int& recLen)
     int len = this->slot[sno].length;
     int off = this->slot[sno].offset;
     // copy the record from offset upto length
-    memcpy(recPtr, (char*)this->data[off], len);
+    memcpy(recPtr, (char*)this->data+off, len);
     recLen = this->slot[sno].length;
 
     return OK;
@@ -181,7 +225,17 @@ Status HFPage::getRecord(RID rid, char* recPtr, int& recLen)
 // in recPtr.
 Status HFPage::returnRecord(RID rid, char*& recPtr, int& recLen)
 {
-    // fill in the body
+    int sno = rid.slotNo;
+
+    if(sno > this->slotCnt)
+        return DONE;
+    if((this->slot[sno]).length == INVALID_SLOT)
+        return FAIL;
+
+    int off = this->slot[sno].offset;
+    recLen = this->slot[sno].length;
+    recPtr = (char*)this->data+off;
+
     return OK;
 }
 
