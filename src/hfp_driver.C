@@ -178,7 +178,7 @@ int HfpDriver::test3()
       if (size != sizeof(int)) 
          cout << "ERROR: incorrect size!\n"; 
       CurRid=Rid; 
-      if ((i%4 == 0)&&(4*i<3*Limit)) { 
+      if (i==19 || i==18 || i == 17 || i==1 || i==3 || i==4 || i==5/*(i%4 == 0)&&(4*i<3*Limit)*/) { 
          DelList[deleteListSize]=Rid; deleteListSize++; 
       } 
       //if compaction is taking place, we shall see.
@@ -250,7 +250,7 @@ int HfpDriver::test4()
 
       if (i%2 == 0)
       { strcat(TmpBuf1, Letter); size = strlen(TmpBuf1);
-	status = hfp.insertRecord (TmpBuf1, size+1, Rid); }
+	status = hfp.insertRecord (TmpBuf1, size+1, Rid); cout << TmpBuf1 << endl; }
       else 
       { strcat(TmpBuf2, Letter); size = strlen(TmpBuf2);
         status = hfp.insertRecord (TmpBuf2, size+1, Rid); }
@@ -268,6 +268,7 @@ int HfpDriver::test4()
     status = hfp.firstRecord(Rid); i=0; j=0; 
     while (status == OK)
     { status = hfp.returnRecord(Rid, temp, size); CurRid=Rid; 
+	  cout <<"Got back: "<< temp <<endl;
       if (status != OK) { 
          cout << "ERROR: getting record.\n"; 
          break; 

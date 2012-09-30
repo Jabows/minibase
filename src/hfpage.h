@@ -6,7 +6,7 @@
 #include "page.h"
 
 
-const int INVALID_SLOT =  -2;
+const int INVALID_SLOT =  -1;
 const int EMPTY_SLOT   =  -1;
 
 // Class definition for a minibase data page.   
